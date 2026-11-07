@@ -4,7 +4,7 @@
 |---|---|
 | Document | Operator contracts, revision 1.1 (2026-11-07) |
 | Covers | GEMM (MXFP4 exact int32; FP16/BF16), Softmax (stable, row-wise), FlashAttention |
-| Applies to | `sim/` (C++ functional/cycle model), `rocm/examples/`, `software/kernels/` (planned), `rtl/` |
+| Applies to | `sim/` (C++ functional/cycle model), `rocm/examples/`, `rtl/` |
 | Related | `spec/ISA.md`, `spec/UARCH.md`, `spec/SAD.md`, `spec/AI_SCOPE.md`, `spec/ROCM_COMPAT.md` |
 | Status | **IMPL** = runs and is checked (name the target); **MODEL** = implemented in `sim/` only; **SPEC** = frozen contract, implementation pending; **TARGET** = needs a datapath that does not exist |
 

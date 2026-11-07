@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | ROCm compatibility matrix and shim specification, revision 1.1 (2026-11-07) |
-| Applies to | `rocm/` (shim, built), `software/rocm_compat/`, `sim/` (M1 model) |
+| Applies to | `rocm/` (shim, built), `sim/` (M1 model) |
 | Related | `spec/ISA.md`, `spec/UARCH.md`, `spec/SAD.md`, `spec/AI_SCOPE.md`, `doc/OPERATORS.md`, `rocm/README.md` |
 | Verdict | HIP **source/API** compatibility via a host-execution shim (supported, 5 examples pass); the **HSA runtime API subset** is supported; **gfx1250 binaries are not supported**; ROCm libraries are **not native** — their operators map onto M1 kernels. |
 
@@ -154,7 +154,7 @@ textures, `double`, or large `__shared__` must be removed.
 | `rocm/src/hip_shim.cpp` | HIP runtime subset over plain host memory |
 | `rocm/src/hsa_shim.cpp` | HSA subset, signals, `hsa_ext_submit` |
 | `rocm/examples/*.cpp` | `hip_saxpy`, `hip_gemm`, `hip_softmax`, `hip_flash_attention`, `hsa_demo` |
-| `software/rocm_compat/` | hipBLASLt/rocBLAS/MIOpen call-site mapping layer (planned) |
+| hipBLASLt/rocBLAS/MIOpen mapping layer | Not implemented; no directory exists yet |
 | `sim/m1_sim.hpp/.cpp` | C++ functional/cycle model the operators execute on |
 
 ### 4.2 `hipMalloc` / `hipMemcpy` / `hipMemset`
