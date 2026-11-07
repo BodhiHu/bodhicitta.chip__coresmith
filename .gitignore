@@ -101,3 +101,6 @@ dashboard.html
 # two of them under .coresmith/. Same two-step re-include as above.
 !orchestrator/tests/fixtures/cross_artifact/**/.coresmith/
 !orchestrator/tests/fixtures/cross_artifact/**/.coresmith/**
+
+# Local secrets (DeepSeek / provider keys)
+.env.local

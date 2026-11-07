@@ -1,0 +1,14 @@
+# Build / physical-design artifacts (large, reproducible from scripts)
+syn/*/*_netlist.v
+syn/*/*.json
+syn/*/stdout*.log
+syn/*/yosys.log
+pnr/*/*.gds
+pnr/*/*.def
+pnr/*/*_pnr.v
+pnr/*/*_pwr.v
+pnr/*/route_guide.guide
+pnr/*/pnr.log
+pnr/*/magic_*.log
+pnr/*/netgen_lvs.log
+project/.coresmith/
