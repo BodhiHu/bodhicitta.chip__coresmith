@@ -190,7 +190,7 @@ def api_operators_run() -> dict:
     cmds = [[str(DESIGN / "sim" / "build" / "run_operators")]]
     cmds += [[str(DESIGN / "scripts" / x)] for x in
              ["check_sfu.sh", "check_softmax.sh", "check_wgp_softmax.sh",
-              "check_top_softmax.sh"]]
+              "check_top_softmax.sh", "check_wmma_top.sh"]]
     cmds += [[str(DESIGN / "rocm" / "build" / x)] for x in
              ["hip_saxpy", "hip_gemm", "hip_softmax", "hip_flash_attention", "hsa_demo"]]
     out = []
@@ -514,7 +514,7 @@ async function runOperators(){
 
 async function refreshOperators(){
   const cards = [
-    ['GEMM MXFP4 64x64x64','PASS · 102.4 GFLOP/s','exact int32 vs CPU FP4 reference; 512 model cycles'],
+    ['GEMM MXFP4 64x64x64','PASS · 102.4 GFLOP/s','exact int32 model; 16x16x32 full-chip RTL 256 cycles'],
     ['Softmax FP16 8x128','PASS · 1.7e-3','stable row-wise max/exp2/sum/rcp'],
     ['FlashAttention FP16','PASS · 1.0e-3','seq=32 dim=16 causal; QK^T → softmax → PV'],
     ['Softmax RTL engine','PASS · full chip','TDM→LDS→S_SOFTMAX→AXI, 940 cycles, sum 4064; 4,410 cells'],
