@@ -517,7 +517,7 @@ async function refreshOperators(){
     ['GEMM MXFP4 64x64x64','PASS · 102.4 GFLOP/s','exact int32 vs CPU FP4 reference; 512 model cycles'],
     ['Softmax FP16 8x128','PASS · 1.7e-3','stable row-wise max/exp2/sum/rcp'],
     ['FlashAttention FP16','PASS · 1.0e-3','seq=32 dim=16 causal; QK^T → softmax → PV'],
-    ['Softmax RTL engine','PASS · full chip','TDM→LDS→S_SOFTMAX→AXI, 915 cycles, sum 4064; 5,622 cells'],
+    ['Softmax RTL engine','PASS · full chip','TDM→LDS→S_SOFTMAX→AXI, 940 cycles, sum 4064; 4,410 cells'],
     ['SFU RTL','PASS · 1,728 cells','exp2 3.53e-4 / rcp 2.51e-4, 4-cycle latency'],
     ['HIP / HSA shim','5/5 PASS','hipMalloc/Memcpy/Launch + HSA queue/signal/dispatch'],
   ];
