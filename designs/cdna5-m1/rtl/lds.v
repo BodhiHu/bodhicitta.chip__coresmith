@@ -44,10 +44,25 @@ module lds (
   input  wire [9:0]   addrl,
   input  wire [1023:0] wdatal,
   output reg  [1023:0] rdatal,
-  output reg          readyl
+  output reg          readyl,
+
+  // scalar word port (softmax engine / SFU)
+  input  wire         reqs,
+  input  wire         wes,
+  input  wire [9:0]   addrs,
+  input  wire [31:0]  wdatas,
+  output wire [31:0]  rdatas,
+  output wire         readys
 );
 
   reg [31:0] mem [0:31][0:31]; // [bank][row]
+
+  assign rdatas = mem[addrs[4:0]][addrs[9:5]];
+  assign readys = reqs;
+
+  always @(posedge clk) begin
+    if (reqs && wes) mem[addrs[4:0]][addrs[9:5]] <= wdatas;
+  end
   reg [31:0] a0 [0:31];
   reg [31:0] a1 [0:31];
 

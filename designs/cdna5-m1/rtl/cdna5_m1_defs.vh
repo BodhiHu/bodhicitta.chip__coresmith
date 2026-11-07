@@ -32,6 +32,7 @@
 `define S_WMMA           6'h15
 `define S_GET_LANE_BASE  6'h16
 `define S_SET_EXEC       6'h17
+`define S_SOFTMAX        6'h18
 
 // ---------------------------------------------------------------- vector ops
 `define V_NOP               6'h20

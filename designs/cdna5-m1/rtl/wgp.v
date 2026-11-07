@@ -82,6 +82,10 @@ module wgp (
   reg         tdone0, tdone1;
   wire        tack0, tack1;
 
+  wire        sfre0, sfre1;
+  wire [31:0] sfa0, sfa1, sfl0, sfl1;
+  reg         sfdone0, sfdone1;
+
   simd32 u_simd0 (
     .clk(clk), .rst_n(rst_n),
     .launch(launch0), .kernel_pc(8'd0), .wg_id(wg_id0), .wg_size(wg_size),
@@ -97,6 +101,8 @@ module wgp (
     .wmma_ack(wack0), .wmma_done(wdone0),
     .tdm_req(treq0), .tdm_src(ts0), .tdm_dst(td0), .tdm_len(tl0),
     .tdm_ack(tack0), .tdm_done(tdone0),
+    .softmax_req(sfre0), .softmax_base(sfa0), .softmax_len(sfl0),
+    .softmax_done(sfdone0),
     .cycle(cycle)
   );
 
@@ -115,6 +121,8 @@ module wgp (
     .wmma_ack(wack1), .wmma_done(wdone1),
     .tdm_req(treq1), .tdm_src(ts1), .tdm_dst(td1), .tdm_len(tl1),
     .tdm_ack(tack1), .tdm_done(tdone1),
+    .softmax_req(sfre1), .softmax_base(sfa1), .softmax_len(sfl1),
+    .softmax_done(sfdone1),
     .cycle(cycle)
   );
 
@@ -137,6 +145,18 @@ module wgp (
   assign w_lds_ready = w_lds_req & lin_ready;
   assign t_lds_ready = t_lds_req & ~w_lds_req & lin_ready;
 
+  // Softmax engine signals (declared before the LDS scalar port).
+  wire        sf_busy, sf_done;
+  reg         sf_start;
+  reg  [9:0]  sf_base;
+  reg  [6:0]  sf_len;
+  reg         sf_owner;
+  reg  [1:0]  sf_cool;
+  wire        sf_lds_req, sf_lds_we;
+  wire [9:0]  sf_lds_addr;
+  wire [31:0] sf_lds_wdata, sf_lds_rdata;
+  wire        sf_lds_ready;
+
   lds u_lds (
     .clk(clk), .rst_n(rst_n),
     .req0(lds_req0), .we0(lds_we0), .addr0(lds_addr0), .wdata0(lds_wdata0),
@@ -144,7 +164,9 @@ module wgp (
     .req1(lds_req1), .we1(lds_we1), .addr1(lds_addr1), .wdata1(lds_wdata1),
     .rdata1(lds_rdata1), .ready1(lds_rdy1), .conflict1(lds_cfl1),
     .reql(lin_req), .wel(lin_we), .addrl(lin_addr), .wdatal(lin_wdata),
-    .rdatal(lin_rdata), .readyl(lin_ready)
+    .rdatal(lin_rdata), .readyl(lin_ready),
+    .reqs(sf_lds_req), .wes(sf_lds_we), .addrs(sf_lds_addr),
+    .wdatas(sf_lds_wdata), .rdatas(sf_lds_rdata), .readys(sf_lds_ready)
   );
 
   // ---------------------------------------------------------------- WMMA
@@ -186,6 +208,15 @@ module wgp (
     .lds_wdata(t_lds_wdata), .lds_ready(t_lds_ready)
   );
 
+  softmax_engine u_softmax (
+    .clk(clk), .rst_n(rst_n),
+    .start(sf_start), .base_word(sf_base), .len(sf_len),
+    .busy(sf_busy), .done(sf_done),
+    .lds_req(sf_lds_req), .lds_we(sf_lds_we), .lds_addr(sf_lds_addr),
+    .lds_wdata(sf_lds_wdata), .lds_rdata(sf_lds_rdata),
+    .lds_ready(sf_lds_ready)
+  );
+
   // ---------------------------------------------------------------- dispatch
   reg [7:0]  pending;
   reg [15:0] next_wg;
@@ -221,11 +252,19 @@ module wgp (
       tdm_kick  <= 2'd0;
       tdone0    <= 1'b0;
       tdone1    <= 1'b0;
+      sf_start  <= 1'b0;
+      sf_base   <= 10'd0;
+      sf_len    <= 7'd0;
+      sf_owner  <= 1'b0;
+      sf_cool   <= 2'd0;
+      sfdone0   <= 1'b0;
+      sfdone1   <= 1'b0;
     end else begin
       launch0   <= 1'b0;
       launch1   <= 1'b0;
       wmm_start <= 1'b0;
       tdm_start <= 1'b0;
+      sf_start  <= 1'b0;
       done      <= 1'b0;
 
       if (start) begin
@@ -300,6 +339,28 @@ module wgp (
       end else begin
         tdone0 <= 1'b0;
         tdone1 <= 1'b0;
+      end
+
+      // Softmax arbitration: one row engine, only when WMMA/TDM are idle.
+      if (sf_cool != 2'd0) sf_cool <= sf_cool - 2'd1;
+      if (!sf_busy && !sf_start && !sf_done && sf_cool == 2'd0 &&
+          !wmm_busy && !wmm_start && !tdm_busy && !tdm_start &&
+          (sfre0 || sfre1)) begin
+        if (sfre0) begin
+          sf_base <= sfa0[9:0]; sf_len <= sfl0[6:0]; sf_owner <= 1'b0;
+        end else begin
+          sf_base <= sfa1[9:0]; sf_len <= sfl1[6:0]; sf_owner <= 1'b1;
+        end
+        sf_start <= 1'b1;
+        sf_cool  <= 2'd2;
+      end
+      if (sf_done) begin
+        sf_cool <= 2'd2;
+        if (sf_owner) sfdone1 <= 1'b1;
+        else          sfdone0 <= 1'b1;
+      end else begin
+        sfdone0 <= 1'b0;
+        sfdone1 <= 1'b0;
       end
     end
   end

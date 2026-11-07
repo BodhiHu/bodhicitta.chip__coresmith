@@ -90,7 +90,7 @@ there without a spec revision (§10).
 | Command processor / dispatch | Launch FSM, CSR file, grid dispatch (1..8 workgroups), completion IRQ, 64-bit cycle counter | 1 launch at a time | IMPL | `spec/SAD.md` §7 |
 | AXI4 master | 128-bit data, 32-bit address, INCR8 (128 B), one outstanding | 16 B/cycle = **1.6 GB/s** peak; ~1.1–1.2 GB/s expected sustained | IMPL | `rtl/axi_master.v`; no exclusive/atomic/unaligned |
 | **SFU** — `exp2`, `rcp` (no `tanh`) | Serialized 16-bit fixed-point transcendental unit, one 16-bit command port | 1 command / 5 cycles, 4-cycle latency; 1,728 cells / 12,714 µm² (Yosys Sky130) for both ops | **IMPL** block, verified standalone (`tb_sfu` PASS); **not yet instantiated** in `wgp`/`simd32`, so no instruction executes it | `rtl/sfu.v`, `syn/sfu/`, `scripts/check_sfu.sh`; contract in §3.1 |
-| **Softmax engine** — stable row-wise | Serialized LDS engine: max pass, SFU exp2 pass, sum, one divide, normalize pass | 4 LDS passes, one 16-bit element at a time; 5,622 cells / 39,035 µm², 304 `dfxtp` | **IMPL** block, verified standalone (`tb_softmax_engine` PASS); **not yet wired** to a scalar instruction in `wgp` | `rtl/softmax_engine.v`, `tb/tb_softmax_engine.v`, `syn/softmax/`; contract in `doc/OPERATORS.md` |
+| **Softmax engine** — stable row-wise | Serialized LDS engine: max pass, SFU exp2 pass, sum, one divide, normalize pass | 4 LDS passes, one 16-bit element at a time; 5,622 cells / 39,035 µm², 304 `dfxtp` | **IMPL and wired**: `S_SOFTMAX` scalar command, WGP arbitration + LDS scalar port; full WGP path PASS (`tb_wgp_softmax`) | `rtl/softmax_engine.v`, `rtl/wgp.v`, `rtl/simd32.v`, `tb/tb_wgp_softmax.v`, `syn/softmax/` |
 | Lane reduction network | wave32 all-reduce (max/add) used by Softmax | 5 rounds via an LDS butterfly (`V_LDS_LD_IDX`); no dedicated hardware | **SPEC** (software sequence) | `doc/OPERATORS.md` §4.4 |
 | FP16/BF16 datapath | F16 vector ALU and FP16 matrix tile | Model: reconfigurable 16x16x16 tile, `M*N*K/128 + 8` cycles; RTL: none | **MODEL** (`sim/m1_sim.hpp` `wmma_f16`) / **TARGET** in RTL — opcodes 0x2F, 0x34–0x37 are reserved and decode as no-ops | `sim/`, `spec/ISA.md`; `spec/FRD.md` FR-010 |
 
@@ -111,7 +111,8 @@ synthesis is 1,728 cells / 12,714 µm² (`syn/sfu/`). **Gaps:** the block is not
 instantiated in `wgp`/`simd32`, so no ISA instruction reaches it; there is no
 `tanh`, no FP32 form, no 32-lane vector form, and no opcode allocated for any
 of them. Softmax therefore uses the SFU through the C++ model
-(`m1::sfu_exp2_row`/`sfu_rcp_row`), the standalone `softmax_engine` block, or the LDS-LUT sequence of
+(`m1::sfu_exp2_row`/`sfu_rcp_row`), the `softmax_engine` block wired through
+`S_SOFTMAX` in the WGP, or the LDS-LUT sequence of
 `doc/OPERATORS.md` §4.
 
 ## 4. Operator support
@@ -120,7 +121,7 @@ of them. Softmax therefore uses the SFU through the C++ model
 |---|---|---|---|
 | **GEMM, MXFP4 → exact int32** | WMMA + TDM + LDS + SIMD epilogue | **IMPL**: one 16x16x32 tile in RTL; 64x64x64 on the model is bit-exact (`max_err=0`), 512 cycles | `doc/OPERATORS.md` §2 |
 | **GEMM, FP16/BF16 → FP32 accumulate** | model FP16 tile (`wmma_f16`) | **MODEL** only; no FP16 datapath in RTL, so it cannot run on `rtl/` | `doc/OPERATORS.md` §3 |
-| **Softmax, stable row-wise** | model: FP16 rows + `sfu_exp2_row`; RTL: `softmax_engine` block (IMPL, standalone) | **IMPL on the model** (8x128, row-sum err 1.716e-3 vs tol 2e-3, 3,168 cycles); RTL block PASS standalone | `doc/OPERATORS.md` §4 |
+| **Softmax, stable row-wise** | model: FP16 rows + `sfu_exp2_row`; RTL: `softmax_engine` via `S_SOFTMAX` in WGP | **IMPL on the model** (8x128, row-sum err 1.716e-3 vs tol 2e-3, 3,168 cycles); **RTL full-WGP path PASS** (32 Q4.12, row sums 4064/4090) | `doc/OPERATORS.md` §4 |
 | **FlashAttention** (`QK^T` → softmax → `PV`) | model FP16 tiles + softmax row + SFU | **IMPL on the model** (seq=32, dim=16, causal, err 1.004e-3 vs tol 2e-2, 3,744 cycles); no RTL FP16 path | `doc/OPERATORS.md` §5 |
 | Elementwise / GEMV / reduction | SIMD32 VALU, `V_DOT8`/`V_DOT4` | **IMPL** | `spec/ISA.md` vector table |
 | Convolution, pooling | Lowered to GEMM by software (im2col / direct) | **SPEC** via GEMM; **no dedicated conv block** | — |

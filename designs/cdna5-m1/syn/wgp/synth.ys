@@ -1,0 +1,9 @@
+read_verilog -Irtl rtl/wgp.v rtl/simd32.v rtl/lds.v rtl/wmma.v rtl/tdm.v rtl/sfu.v rtl/softmax_engine.v
+hierarchy -top wgp
+synth -top wgp -flatten
+dfflibmap -liberty /workspace/菩提树/coresmith/.pdk/sky130A/libs.ref/sky130_fd_sc_hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib
+abc -liberty /workspace/菩提树/coresmith/.pdk/sky130A/libs.ref/sky130_fd_sc_hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib
+opt_clean
+stat
+write_verilog -noattr syn/wgp/wgp_netlist.v
+write_json syn/wgp/wgp_netlist.json

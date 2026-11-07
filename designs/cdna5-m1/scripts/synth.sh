@@ -25,8 +25,8 @@ BLOCK=${1:-wmma}
 case "$BLOCK" in
   wmma)   TOP=wmma;    SRCS="rtl/wmma.v" ;;
   simd32) TOP=simd32;  SRCS="rtl/simd32.v" ;;
-  wgp)    TOP=wgp;     SRCS="rtl/wgp.v rtl/simd32.v rtl/lds.v rtl/wmma.v rtl/tdm.v" ;;
-  top)    TOP=cdna5_m1_top; SRCS="rtl/cdna5_m1_top.v rtl/command_processor.v rtl/axi_lite_slave.v rtl/axi_master.v rtl/wgp.v rtl/simd32.v rtl/lds.v rtl/wmma.v rtl/tdm.v" ;;
+  wgp)    TOP=wgp;     SRCS="rtl/wgp.v rtl/simd32.v rtl/lds.v rtl/wmma.v rtl/tdm.v rtl/sfu.v rtl/softmax_engine.v" ;;
+  top)    TOP=cdna5_m1_top; SRCS="rtl/cdna5_m1_top.v rtl/command_processor.v rtl/axi_lite_slave.v rtl/axi_master.v rtl/wgp.v rtl/simd32.v rtl/lds.v rtl/wmma.v rtl/tdm.v rtl/sfu.v rtl/softmax_engine.v" ;;
   *) echo "unknown block '$BLOCK' (wmma|simd32|wgp|top)" >&2; exit 2 ;;
 esac
 

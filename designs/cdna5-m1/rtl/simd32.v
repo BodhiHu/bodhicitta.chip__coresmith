@@ -120,6 +120,12 @@ module simd32 (
   input  wire         tdm_ack,
   input  wire         tdm_done,
 
+  // softmax engine hand-off
+  output reg          softmax_req,
+  output wire [31:0]  softmax_base,
+  output wire [31:0]  softmax_len,
+  input  wire         softmax_done,
+
   input  wire [63:0]  cycle
 );
 
@@ -135,6 +141,7 @@ module simd32 (
   localparam S_GMEM_W    = 4'd8;
   localparam S_WMMA_W    = 4'd9;
   localparam S_TDM_W     = 4'd10;
+  localparam S_SOFTMAX_W = 4'd11;
 
   reg [3:0]  state;
   reg [7:0]  pc;
@@ -268,6 +275,9 @@ module simd32 (
   assign tdm_dst = sgpr[d_dst + 5'd1];
   assign tdm_len = sgpr[d_dst + 5'd2];
 
+  assign softmax_base = sgpr[d_dst];
+  assign softmax_len  = sgpr[d_dst + 5'd1];
+
   // ------------------------------------------------------------------ FSM
   integer i;
   always @(posedge clk) begin
@@ -287,6 +297,7 @@ module simd32 (
       gmem_we   <= 1'b0;
       wmma_req  <= 1'b0;
       tdm_req   <= 1'b0;
+      softmax_req <= 1'b0;
       instr     <= 32'd0;
       literal   <= 32'd0;
       gwait     <= 1'b0;
@@ -309,6 +320,7 @@ module simd32 (
           gmem_req <= 1'b0;
           wmma_req <= 1'b0;
           tdm_req  <= 1'b0;
+          softmax_req <= 1'b0;
           if (launch) begin
             pc        <= kernel_pc;
             pc_next   <= kernel_pc;
@@ -365,6 +377,7 @@ module simd32 (
           gmem_we  <= 1'b0;
           wmma_req <= 1'b0;
           tdm_req  <= 1'b0;
+          softmax_req <= 1'b0;
 
           if (is_scalar) begin
             case (dec_op)
@@ -390,6 +403,10 @@ module simd32 (
               `S_WMMA: begin
                 wmma_req <= 1'b1;
                 state    <= S_WMMA_W;
+              end
+              `S_SOFTMAX: begin
+                softmax_req <= 1'b1;
+                state       <= S_SOFTMAX_W;
               end
               `S_SET_EXEC: begin
                 exec_mask <= dec_imm ? literal : dec_a;
@@ -488,6 +505,14 @@ module simd32 (
             tdm_req <= 1'b0;
             pc      <= pc_next;
             state   <= S_FETCH;
+          end
+        end
+
+        S_SOFTMAX_W: begin
+          if (softmax_done) begin
+            softmax_req <= 1'b0;
+            pc          <= pc_next;
+            state       <= S_FETCH;
           end
         end
 

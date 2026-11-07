@@ -32,7 +32,9 @@ module tb_wmma;
     .req1(1'b0), .we1(1'b0), .addr1(1024'd0), .wdata1(1024'd0),
     .rdata1(rdata1), .ready1(ready1), .conflict1(cfl1),
     .reql(l_req), .wel(l_we), .addrl(l_addr), .wdatal(l_wdata),
-    .rdatal(l_rdata), .readyl(l_ready)
+    .rdatal(l_rdata), .readyl(l_ready),
+    .reqs(1'b0), .wes(1'b0), .addrs(10'd0), .wdatas(32'd0),
+    .rdatas(), .readys()
   );
 
   reg         start;
