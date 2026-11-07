@@ -24,7 +24,7 @@ OPCODES = {
     "s_barrier": 0x0D, "s_waitcnt": 0x0E, "s_get_wg_id": 0x0F,
     "s_get_wg_size": 0x10, "s_mov_b64": 0x11, "s_lds_addr": 0x12,
     "s_csr_read": 0x13, "s_tdm_copy": 0x14, "s_wmma": 0x15,
-    "s_get_lane_base": 0x16, "s_set_exec": 0x17,
+    "s_get_lane_base": 0x16, "s_set_exec": 0x17, "s_softmax": 0x18,
     "v_nop": 0x20, "v_mov_b32": 0x21, "v_add_i32": 0x22, "v_sub_i32": 0x23,
     "v_and_b32": 0x24, "v_or_b32": 0x25, "v_xor_b32": 0x26,
     "v_shl_b32": 0x27, "v_shr_b32": 0x28, "v_mul_i32": 0x29,
@@ -52,7 +52,7 @@ THREE_SRC = {
 
 MEM_LD = {"v_lds_ld", "v_lds_ld_idx", "v_mem_ld"}
 MEM_ST = {"v_lds_st", "v_lds_st_idx", "v_mem_st"}
-DESC = {"s_wmma", "s_tdm_copy"}
+DESC = {"s_wmma", "s_tdm_copy", "s_softmax"}
 
 
 def parse_reg(tok: str) -> tuple[str, int]:

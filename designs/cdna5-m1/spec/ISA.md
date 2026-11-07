@@ -80,6 +80,7 @@ from `src` field). The convention used by this subset:
 | 0x15 | `S_WMMA` | matrix core; descriptor in `s[dst..dst+2]`: A LDS word, B LDS word, C LDS word. Fixed 16x16x32 FP4 |
 | 0x16 | `S_GET_LANE_BASE sd` | lane base of this wave (0) |
 | 0x17 | `S_SET_EXEC imm` | `EXEC = imm32` (immediate form) |
+| 0x18 | `S_SOFTMAX` | row-wise softmax engine; descriptor in `s[dst..dst+1]`: LDS base word, element count (2..64, even). Input signed Q4.12, output Q0.12, in place |
 
 ## Vector instructions (`opcode[5:4] == 2'b01`)
 
@@ -117,6 +118,11 @@ lane index 0..31.
 | 0x3A | `V_READFIRSTLANE_B32 vd, vs0` | broadcast lane 0 (bring-up) |
 
 ## Matrix core
+
+`S_SOFTMAX` hands the row `s[dst] .. s[dst]+len/2-1` in LDS to the serialized
+softmax engine (`rtl/softmax_engine.v`): it finds the row max, computes
+`exp2(x-max)` with the SFU, sums, divides once and writes the normalized
+row back in place.  It is a WGP-level AI command, not a lane instruction.
 
 `S_WMMA` executes `C[16][16] += A[16][32] x B[32][16]` where A, B are
 **MXFP4 (E2M1)** nibbles and C is int32. A and B are staged in LDS as packed
@@ -180,10 +186,10 @@ cocotb harness. Literal forms append a second word.
 
 Implemented and verified in `rtl/`:
 
-* scalar ALU and control flow (`S_*` 0x00-0x17 except 0x11),
+* scalar ALU and control flow (`S_*` 0x00-0x18 except 0x11),
 * integer/bitwise vector ALU (`V_*` 0x20-0x2E),
-* LDS and global block loads/stores, TDM copy, WMMA (0x30-0x33, 0x38-0x3A,
-  0x14, 0x15),
+* LDS and global block loads/stores, TDM copy, WMMA, softmax (0x30-0x33,
+  0x38-0x3A, 0x14, 0x15, 0x18),
 * EXEC mask, SCC/VCC, wave32.
 
 Reserved in v1 (decode as NOP, no side effects): F16 vector ops 0x34-0x37,
