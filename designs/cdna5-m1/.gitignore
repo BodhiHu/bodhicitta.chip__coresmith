@@ -16,3 +16,7 @@ pnr/*/*.cdl
 pnr/*/*.cir
 pnr/*/*.spice
 pnr/*/*.lvsdb
+sim/build/
+rocm/build/
+*.o
+*.a

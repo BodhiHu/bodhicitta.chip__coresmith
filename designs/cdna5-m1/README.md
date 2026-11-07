@@ -18,6 +18,53 @@
 > KLayout DRC 已為 0，netgen LVS 尚待處理（1.25M flat references），
 > 詳見 `doc/BACKEND.md`。
 
+
+## AI-only scope and operators
+
+The design is **AI-only**.  There are no video decoders, display engines,
+raster/3D units, texture units, JPEG/HEVC/AV1 codecs or graphics ISA in the
+RTL, the ISA, or the block diagram.  The chip keeps only the CDNA5 compute
+model: wave32 SIMD, WMMA, LDS/TDM, SFU and the AXI host/memory interfaces.
+
+| Operator | Implementation | Check | Result |
+|---|---|---|---|
+| GEMM 64x64x64 MXFP4 | 16x16x32 WMMA tiles, exact int32 | vs CPU FP4 int reference | **PASS**, 512 model cycles, 102.4 GFLOP/s |
+| Softmax 8x128 FP16 | stable max -> exp2 -> sum -> rcp | vs double reference / row sums | **PASS**, max err 1.7e-3 |
+| FlashAttention seq=32 dim=16 causal | QK^T -> softmax -> PV, 16-row blocks | vs CPU float reference | **PASS**, max err 1.0e-3 |
+
+Reproduce:
+
+```bash
+./scripts/run_operators.sh
+```
+
+The operators run on the functional/cycle model (`sim/`) that mirrors the
+RTL WMMA E2M1 decode, 4 KB LDS, 1-D TDM and SFU.  The 16x16x32 GEMM tile is
+also verified end-to-end in RTL by `tb/tb_wmma_top.v`.  A synthesizable
+standalone SFU (`rtl/sfu.v`, 1,728 Sky130 cells, exp2 3.53e-4 / rcp 2.51e-4,
+4-cycle latency) is provided for the softmax path and is tested by
+`tb/tb_sfu.v`; it is not yet instantiated in `wgp`/`simd32`, which is called
+out in `spec/AI_SCOPE.md`.
+
+Contracts: [`spec/AI_SCOPE.md`](spec/AI_SCOPE.md),
+[`spec/ROCM_COMPAT.md`](spec/ROCM_COMPAT.md),
+[`doc/OPERATORS.md`](doc/OPERATORS.md).
+
+## CDNA5 ROCm compatibility
+
+`rocm/` is a **source/API-level** ROCm shim, not a gfx1250 binary runtime:
+
+* HIP runtime API subset: `hipMalloc`, `hipMemcpy`, `hipMemset`, streams,
+  events, device properties, `hipLaunchKernelGGL`;
+* HIP C++ source compiles with g++ and runs through the shim;
+* HSA runtime API subset: agents, signals, queues, memory, dispatch;
+* M1 device kernels call the FP4 GEMM / Softmax / FlashAttention operators;
+* ROCm binary compatibility, ROCr ABI and hipBLASLt/rocBLAS/MIOpen are
+  explicitly **not** supported; see `spec/ROCM_COMPAT.md`.
+
+Examples (all PASS): `hip_saxpy`, `hip_gemm_m1`, `hip_softmax_m1`,
+`hip_flash_attention_m1`, `hsa_demo`.
+
 ## What this is
 
 `cdna5-m1` is a scaled, synthesizable implementation of the AMD **CDNA 5**
@@ -194,6 +241,11 @@ and the control/AXI/TDM logic.
       detailed route did not converge (126k–356k violations) because the
       1,024-bit LDS buses / 2,096 pins are unroutable in this form
 * [ ] Full-chip GDS/DRC/LVS — blocked by host memory (see `doc/BACKEND.md`)
+* [x] AI-only scope: no graphics/video/display/raster/texture/codec blocks
+* [x] GEMM / Softmax / FlashAttention on the M1 functional/cycle model
+* [x] HIP/HSA source/API compatibility shim with 5/5 PASS examples
+* [ ] Native gfx1250 ROCm binary compatibility (out of scope)
+* [x] SFU RTL (exp2/rcp) + standalone synthesis/test
 * [ ] Full-chip PPA roll-up
 
 See [`doc/VERIFICATION.md`](doc/VERIFICATION.md) and

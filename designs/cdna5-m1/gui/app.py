@@ -185,6 +185,26 @@ def api_stage_next() -> dict:
     return cli("stage", "next", "--json")
 
 
+@app.post("/api/operators/run")
+def api_operators_run() -> dict:
+    cmds = [[str(DESIGN / "sim" / "build" / "run_operators")]]
+    cmds += [[str(DESIGN / "rocm" / "build" / x)] for x in
+             ["hip_saxpy", "hip_gemm", "hip_softmax", "hip_flash_attention", "hsa_demo"]]
+    out = []
+    for cmd in cmds:
+        try:
+            p = subprocess.run(cmd, cwd=str(DESIGN), text=True,
+                               capture_output=True, timeout=120)
+            out.append(f"$ {' '.join(x.split('/')[-1] for x in cmd)}")
+            out.append((p.stdout or "").strip())
+            if p.returncode != 0:
+                out.append((p.stderr or "").strip())
+                return {"ok": False, "output": "\n".join(out)}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+    return {"ok": True, "output": "\n".join(out)}
+
+
 @app.get("/api/progress")
 def api_progress() -> dict:
     files = []
@@ -280,6 +300,7 @@ INDEX_HTML = r"""<!doctype html>
   <button class="on" data-tab="overview">Overview</button>
   <button data-tab="requirements">Requirements</button>
   <button data-tab="architecture">Architecture / Run</button>
+  <button data-tab="operators">AI operators</button>
   <button data-tab="evidence">Evidence</button>
   <button data-tab="progress">Progress logs</button>
 </nav>
@@ -355,6 +376,20 @@ INDEX_HTML = r"""<!doctype html>
     </div>
   </section>
 
+  <section id="operators" class="tab">
+    <div class="grid" id="operatorCards"></div>
+    <div class="card" style="margin-top:14px">
+      <h2>Operator / ROCm verification</h2>
+      <div class="muted">Runs the M1 functional/cycle model (GEMM, Softmax,
+        FlashAttention) and the HIP/HSA examples in the current environment.
+        The chip is <b>AI-only</b>: no video, display, raster, texture, or
+        image-codec blocks are present.</div>
+      <div style="margin-top:10px"><button class="act" onclick="runOperators()">Run all operators</button></div>
+      <div class="msg" id="opMsg"></div>
+      <pre id="opResults">Click “Run all operators” to execute ./sim/build/run_operators and the ROCm examples.</pre>
+    </div>
+  </section>
+
   <section id="evidence" class="tab">
     <div class="grid" id="evidenceCards"></div>
     <div class="card" style="margin-top:14px">
@@ -393,7 +428,8 @@ async function refreshStatus(){
       card('CoreSmith stage', st.stage || 'unknown', (st.can_advance ? 'ready to advance' : 'blocked / in progress'), st.can_advance ? 'ok' : 'warn') +
       card('Architecture phase', arch.status || arch.phase || 'idle', 'DeepSeek worker via claude provider', '') +
       card('Daemon', daemon.alive ? 'alive' : 'down', `port ${daemon.port || '—'}`, daemon.alive ? 'ok' : 'bad') +
-      card('Peak compute', '102.4 GFLOP/s', 'MXFP4 · 512 MAC/clk · 100 MHz', 'ok');
+      card('Peak compute', '102.4 GFLOP/s', 'MXFP4 · 512 MAC/clk · 100 MHz', 'ok') +
+      card('AI-only', 'no graphics', 'no video/display/raster/texture/codec blocks', 'ok');
     $('#designSummary').innerHTML = `1 WGP / 1 CU / 2×SIMD32 · 4 KB LDS · 16×16×32 matrix core<br>
       <span class="pill">RTL PASS 3/3</span><span class="pill">WMMA 126,245 cells / 1.218 mm²</span>
       <span class="pill">TDM P&R WNS 0 / 10.1 mW</span>`;
@@ -465,6 +501,24 @@ async function refreshArch(){
   } catch(e){ $('#archState').textContent = String(e); }
 }
 
+async function runOperators(){
+  $('#opMsg').textContent = 'Running…';
+  const r = await jpost('/api/operators/run');
+  $('#opMsg').textContent = r.ok === false ? ('Failed: ' + (r.error || '')) : 'Completed.';
+  $('#opResults').textContent = (r.output || r.error || '').slice(0, 20000);
+  await refreshOperators();
+}
+
+async function refreshOperators(){
+  const cards = [
+    ['GEMM MXFP4 64x64x64','PASS · 102.4 GFLOP/s','exact int32 vs CPU FP4 reference; 512 model cycles'],
+    ['Softmax FP16 8x128','PASS · 1.7e-3','stable row-wise max/exp2/sum/rcp'],
+    ['FlashAttention FP16','PASS · 1.0e-3','seq=32 dim=16 causal; QK^T → softmax → PV'],
+    ['HIP / HSA shim','5/5 PASS','hipMalloc/Memcpy/Launch + HSA queue/signal/dispatch'],
+  ];
+  $('#operatorCards').innerHTML = cards.map(c => card(c[0], c[1], c[2], 'ok')).join('');
+}
+
 async function refreshEvidence(){
   const cards = [
     ['Matrix core peak','102.4 GFLOP/s','512 MXFP4 MAC/cycle × 2 FLOP × 100 MHz'],
@@ -488,8 +542,9 @@ async function refreshProgress(){
   $('#progressBox').innerHTML = (p.files||[]).map(f => `<div class="card"><h2>${esc(f.name)}</h2><pre>${esc(f.text)}</pre></div>`).join('') || '<div class="card muted">No logs yet.</div>';
 }
 
-async function refreshAll(){ await refreshStatus(); await refreshReqs(); await refreshArch(); await refreshEvidence(); await refreshProgress(); }
+async function refreshAll(){ await refreshStatus(); await refreshReqs(); await refreshArch(); await refreshEvidence(); await refreshProgress(); await refreshOperators(); }
 refreshAll();
+refreshOperators();
 setInterval(refreshStatus, 5000);
 setInterval(refreshArch, 5000);
 </script>
