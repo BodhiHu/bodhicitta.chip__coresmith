@@ -42,9 +42,11 @@ The operators run on the functional/cycle model (`sim/`) that mirrors the
 RTL WMMA E2M1 decode, 4 KB LDS, 1-D TDM and SFU.  The 16x16x32 GEMM tile is
 also verified end-to-end in RTL by `tb/tb_wmma_top.v`.  A synthesizable
 standalone SFU (`rtl/sfu.v`, 1,728 Sky130 cells, exp2 3.53e-4 / rcp 2.51e-4,
-4-cycle latency) is provided for the softmax path and is tested by
-`tb/tb_sfu.v`; it is not yet instantiated in `wgp`/`simd32`, which is called
-out in `spec/AI_SCOPE.md`.
+4-cycle latency) and a **standalone LDS softmax engine**
+(`rtl/softmax_engine.v`, 5,622 cells / 39,035 µm², four passes, row-sum
+4036-4090) are provided for the softmax path and tested by `tb/tb_sfu.v` /
+`tb/tb_softmax_engine.v`; they are not yet instantiated in `wgp`/`simd32`,
+which is called out in `spec/AI_SCOPE.md`.
 
 Contracts: [`spec/AI_SCOPE.md`](spec/AI_SCOPE.md),
 [`spec/ROCM_COMPAT.md`](spec/ROCM_COMPAT.md),
@@ -246,6 +248,7 @@ and the control/AXI/TDM logic.
 * [x] HIP/HSA source/API compatibility shim with 5/5 PASS examples
 * [ ] Native gfx1250 ROCm binary compatibility (out of scope)
 * [x] SFU RTL (exp2/rcp) + standalone synthesis/test
+* [x] Softmax RTL engine (LDS, stable row-wise) + standalone synthesis/test
 * [ ] Full-chip PPA roll-up
 
 See [`doc/VERIFICATION.md`](doc/VERIFICATION.md) and
