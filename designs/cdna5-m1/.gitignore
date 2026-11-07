@@ -20,3 +20,4 @@ sim/build/
 rocm/build/
 *.o
 *.a
+syn/*/synth.ys
