@@ -188,6 +188,8 @@ def api_stage_next() -> dict:
 @app.post("/api/operators/run")
 def api_operators_run() -> dict:
     cmds = [[str(DESIGN / "sim" / "build" / "run_operators")]]
+    cmds += [[str(DESIGN / "scripts" / x)] for x in
+             ["check_sfu.sh", "check_softmax.sh", "check_wgp_softmax.sh"]]
     cmds += [[str(DESIGN / "rocm" / "build" / x)] for x in
              ["hip_saxpy", "hip_gemm", "hip_softmax", "hip_flash_attention", "hsa_demo"]]
     out = []
@@ -514,7 +516,7 @@ async function refreshOperators(){
     ['GEMM MXFP4 64x64x64','PASS · 102.4 GFLOP/s','exact int32 vs CPU FP4 reference; 512 model cycles'],
     ['Softmax FP16 8x128','PASS · 1.7e-3','stable row-wise max/exp2/sum/rcp'],
     ['FlashAttention FP16','PASS · 1.0e-3','seq=32 dim=16 causal; QK^T → softmax → PV'],
-    ['Softmax RTL engine','PASS · 5,622 cells','standalone LDS block; row sums 4036-4090; 39,035 µm²'],
+    ['Softmax RTL engine','PASS · wired in WGP','S_SOFTMAX full path; row sums 4064/4090; 5,622 cells / 39,035 µm²'],
     ['SFU RTL','PASS · 1,728 cells','exp2 3.53e-4 / rcp 2.51e-4, 4-cycle latency'],
     ['HIP / HSA shim','5/5 PASS','hipMalloc/Memcpy/Launch + HSA queue/signal/dispatch'],
   ];
