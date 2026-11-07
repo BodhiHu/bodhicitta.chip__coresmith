@@ -331,8 +331,13 @@ timing result.
 | Detailed-route DRC | 0 (`route_drc.rpt` empty) |
 | GDS | `pnr/tdm/tdm_mapped.gds` (110 MB, KLayout DEF+LEF+cell GDS; valid GDSII, top cell `tdm`) |
 
-The 125k-cell `wmma` place-and-route is being re-run on the upgraded
-15 GB / 8-core host (`pnr/wmma/pnr.log`).
+The 125k-cell `wmma` place-and-route was re-run on the upgraded 15 GB /
+8-core host at 45% and 30% utilization.  Placement, CTS and global route
+complete, but flat detailed routing does not converge (126,726 violations at
+45%; 255,357 -> 355,997 at 30%).  The 2,096-pin block with 1,024-bit LDS read
+and write buses is the congestion source; a routeable build needs the buses
+split or mapped to SRAM macros, or a hierarchical partition.  This is an
+architecture/floorplan limitation, not a synthesis failure.
 
 **GDS/DRC/LVS status.**  The DEF was converted to a valid 110 MB GDS by
 KLayout (`pnr/tdm/tdm_mapped.gds`).  KLayout's Sky130 DRC deck

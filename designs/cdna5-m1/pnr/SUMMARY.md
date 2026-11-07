@@ -22,5 +22,9 @@ format.  The raw GDS/DEF/netlists are ignored by git; the reports are kept.
 
 ## `wmma`
 
-126,245 cells; P&R was not run on the 8 GB host.  It is the next target on
-the upgraded host (15 GB / 8 cores).
+126,245 cells / 1.218 mm2.  P&R on the 15 GB / 8-core host at 45% and 30%
+utilization completed placement, CTS and global route, but flat detailed
+routing did not converge (126,726 violations at 45%; 255,357 -> 355,997 at
+30%).  The 2,096-pin block with 1,024-bit LDS read/write buses is the
+congestion source; split the buses or map them to SRAM macros, or use a
+hierarchical partition, before retrying.
