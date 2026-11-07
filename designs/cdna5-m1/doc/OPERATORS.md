@@ -155,10 +155,10 @@ FlashAttention uses to divide once at the end. `N` is runtime; the kernel takes
 |---|---|---|---|
 | **M1 — model FP16** | `m1::softmax_row`: FP16 rows in LDS, `sfu_exp2_row`/`sfu_rcp_row` | 8x128: row-sum error **1.716e-3** (tolerance 2e-3), 3,168 cycles *(model)*; the HIP example reports 4.5e-4 | **IMPL (model)** |
 | **RTL full-WGP** | `S_SOFTMAX` -> `softmax_engine` -> LDS scalar port | 32 x Q4.12: equal row sum 4064; one-hot first 1393 / other 87, sum 4090 | **IMPL and verified** (`tb_wgp_softmax`) |
-| **RTL full-chip** | TDM global->LDS, `S_SOFTMAX`, `V_LDS_LD`/`V_MEM_ST` back to AXI | 32 x Q4.12 zeros: output sum **4064**, each 127; **915 cycles** | **IMPL and verified** (`tb_top_softmax`) |
+| **RTL full-chip** | TDM global->LDS, `S_SOFTMAX`, `V_LDS_LD`/`V_MEM_ST` back to AXI | 32 x Q4.12 zeros: output sum **4064**, each 127; **940 cycles** | **IMPL and verified** (`tb_top_softmax`) |
 | **S1 — fixed point (Q16.16 in, Q0.23 `p`, int32 `l`)** | SIMD32 int + 256-entry exp2 LUT in LDS + Newton reciprocal | `rtol <= 5e-6` target (LUT ≈1.5e-6, Q0.23 1.2e-7, reciprocal 2^-20) | **SPEC** — RTL path, not written |
 | **S2 — SFU 16-bit fixed point** | `rtl/sfu.v` `exp2`/`rcp` (Q4.12→Q0.12, Q1.15) | exp2 max abs 3.53e-4, rcp max rel 2.51e-4 *(measured over all codes)* | **IMPL block**, not integrated; 1 op / 5 cycles |
-| **S3 — LDS softmax engine** | `rtl/softmax_engine.v`: 4 LDS passes (max, exp2, sum, normalize), one divide per row; `S_SOFTMAX` scalar command in WGP | 32 x Q4.12: row sums 4036-4090, one-hot first 1393 / other 87; 5,622 cells / 39,035 µm² *(measured)* | **IMPL and wired**: full WGP path PASS (`tb_wgp_softmax`) |
+| **S3 — LDS softmax engine** | `rtl/softmax_engine.v`: 4 LDS passes (max, exp2, sum, normalize), one divide per row; `S_SOFTMAX` scalar command in WGP | 32 x Q4.12: row sums 4036-4090, one-hot first 1393 / other 87; 4,410 cells / 33,388 µm² *(measured; serial divider)* | **IMPL and wired**: full WGP path PASS (`tb_wgp_softmax`) |
 
 The SFU is **serialized**: 32 lanes' `exp2` is 32 x 5 = 160 cycles, so for a
 full wave the LUT sequence (≈15 instructions ≈60 cycles per 32-element chunk)

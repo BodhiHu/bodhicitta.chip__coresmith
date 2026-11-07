@@ -46,7 +46,8 @@ module softmax_engine (
   localparam [3:0] S_NORM_RD = 4'd8;
   localparam [3:0] S_NORM_WT = 4'd9;
   localparam [3:0] S_NORM_WR = 4'd10;
-  localparam [3:0] S_DONE   = 4'd11;
+  localparam [3:0] S_DONE    = 4'd11;
+  localparam [3:0] S_DIV     = 4'd12;
 
   reg [3:0]  state;
   reg [6:0]  idx;
@@ -58,6 +59,9 @@ module softmax_engine (
   reg [15:0] sfu_x;
   reg [19:0] sum_r;
   reg [31:0] inv_sum;
+  reg [31:0] div_rem;
+  reg [24:0] div_quot;
+  reg [4:0]  div_bit;
   reg [15:0] exp_r;
 
   wire [15:0] cur = idx[0] ? rdata_r[31:16] : rdata_r[15:0];
@@ -80,10 +84,15 @@ module softmax_engine (
 
   assign sfu_start = (state == S_SFU_ST);
 
-  // One division per row; 4096*4096/sum gives the Q0.12 normalization scale.
-  always @* begin
-    inv_sum = (sum_r == 20'd0) ? 32'd0 : (32'd16777216 / sum_r);
-  end
+  // One restoring division per row: inv_sum = 2^24 / sum (25 cycles).  This
+  // replaces the former combinational 32/20 divider, which made ABC run for
+  // minutes on the WGP.
+  wire [31:0] div_rem_shift = (div_rem << 1) | (div_bit == 5'd24 ? 32'd1 : 32'd0);
+  wire [31:0] div_rem_next  = (div_rem_shift >= {12'd0, sum_r})
+                              ? (div_rem_shift - {12'd0, sum_r}) : div_rem_shift;
+  wire        div_sub       = (div_rem_shift >= {12'd0, sum_r});
+  wire [24:0] div_quot_next = div_quot |
+                              (div_sub ? (25'd1 << div_bit) : 25'd0);
 
   wire [47:0] norm_prod = {32'd0, cur} * {16'd0, inv_sum};
   wire [47:0] norm_shift = norm_prod >> 12;
@@ -101,6 +110,10 @@ module softmax_engine (
       sfu_x    <= 16'd0;
       sum_r    <= 20'd0;
       exp_r    <= 16'd0;
+      inv_sum  <= 32'd0;
+      div_rem  <= 32'd0;
+      div_quot <= 25'd0;
+      div_bit  <= 5'd24;
       busy     <= 1'b0;
       done     <= 1'b0;
       lds_req  <= 1'b0;
@@ -179,11 +192,30 @@ module softmax_engine (
           lds_wdata <= w_keep;
           sum_r     <= sum_r + {4'd0, sfu_y};
           if (idx + 7'd1 >= len_r) begin
-            idx   <= 7'd0;
-            state <= S_NORM_RD;
+            idx      <= 7'd0;
+            div_rem  <= 32'd0;
+            div_quot <= 25'd0;
+            div_bit  <= 5'd24;
+            state    <= S_DIV;
           end else begin
             idx   <= idx + 7'd1;
             state <= S_EXP_RD;
+          end
+        end
+
+        S_DIV: begin
+          if (sum_r == 20'd0) begin
+            inv_sum <= 32'd0;
+            state   <= S_NORM_RD;
+          end else begin
+            div_rem  <= div_rem_next;
+            div_quot <= div_quot_next;
+            if (div_bit == 5'd0) begin
+              inv_sum <= {7'd0, div_quot_next};
+              state   <= S_NORM_RD;
+            end else begin
+              div_bit <= div_bit - 5'd1;
+            end
           end
         end
 

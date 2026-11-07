@@ -43,11 +43,11 @@ RTL WMMA E2M1 decode, 4 KB LDS, 1-D TDM and SFU.  The 16x16x32 GEMM tile is
 also verified end-to-end in RTL by `tb/tb_wmma_top.v`.  A synthesizable
 standalone SFU (`rtl/sfu.v`, 1,728 Sky130 cells, exp2 3.53e-4 / rcp 2.51e-4,
 4-cycle latency) and a **standalone LDS softmax engine**
-(`rtl/softmax_engine.v`, 5,622 cells / 39,035 µm², four passes, row-sum
+(`rtl/softmax_engine.v`, 4,410 cells / 33,388 µm², four passes, row-sum
 4036-4090) are provided for the softmax path.  The softmax engine is now
 **wired into the WGP** through the `S_SOFTMAX` scalar command and the LDS
 scalar port; `tb/tb_wgp_softmax.v` passes the full WGP path, and `tb/tb_top_softmax.v`
-passes the full-chip TDM -> softmax -> AXI path (915 cycles, row sum 4064).
+passes the full-chip TDM -> softmax -> AXI path (940 cycles, row sum 4064).
 The assembler understands
 `S_SOFTMAX` (`sw/asm.py`), and `sw/softmax.s` assembles to a 256-word image.
 The SFU remains a standalone block in `simd32`; see `spec/AI_SCOPE.md`.
