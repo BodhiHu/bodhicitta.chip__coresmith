@@ -28,6 +28,12 @@ link_design $design_name
 read_sdc $sdc_file
 puts "Cells: [llength [get_cells *]]"
 
+# Yosys constant nets (zero_/one_) are typed GROUND/POWER by the netlist and
+# are not routable.  Bind the constant pins to the rails, matching
+# coresmith/orchestrator/pdk_templates/sky130/pnr_reference.tcl.
+catch { add_global_connection -net VGND -inst_pattern ".*" -pin_pattern "zero_" -ground }
+catch { add_global_connection -net VPWR -inst_pattern ".*" -pin_pattern "one_" -power }
+
 puts "========== 2. Floorplan =========="
 initialize_floorplan -utilization $utilization -aspect_ratio 1.0 -core_space 2 -site unithd
 make_tracks li1  -x_offset 0.23 -x_pitch 0.46 -y_offset 0.17 -y_pitch 0.34
@@ -81,7 +87,21 @@ check_placement -verbose
 filler_placement -prefix FILLER {sky130_fd_sc_hd__decap_12 sky130_fd_sc_hd__decap_8 sky130_fd_sc_hd__decap_6 sky130_fd_sc_hd__decap_4 sky130_fd_sc_hd__decap_3 sky130_fd_sc_hd__fill_2 sky130_fd_sc_hd__fill_1}
 
 puts "========== 6. Routing =========="
-set_thread_count 1
+
+# Reclassify stray GROUND/POWER nets to SIGNAL before routing (DRT-0305).
+set block [ord::get_db_block]
+foreach net [$block getNets] {
+    set sig_type [$net getSigType]
+    set special [$net isSpecial]
+    if {($sig_type == "GROUND" || $sig_type == "POWER") && !$special} {
+        set net_name [$net getName]
+        if {$net_name ne "VPWR" && $net_name ne "VGND" && $net_name ne "VPB" && $net_name ne "VNB"} {
+            puts "Reclassifying net '$net_name' ($sig_type, special=$special) to SIGNAL"
+            $net setSigType SIGNAL
+        }
+    }
+}
+set_thread_count [expr {[info exists ::env(PNR_THREADS)] ? $::env(PNR_THREADS) : 4}]
 set_routing_layers -signal met1-met4 -clock met3-met4
 global_route -guide_file "$out_dir/route_guide.guide" -congestion_iterations 50
 detailed_route -output_drc "$out_dir/route_drc.rpt" -verbose 1

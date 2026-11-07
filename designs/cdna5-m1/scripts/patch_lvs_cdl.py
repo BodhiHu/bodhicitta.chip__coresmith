@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+"""Add the Sky130 power pins to Yosys write_spice cell instances for LVS.
+
+Yosys emits `Xinst a x sky130_fd_sc_hd__buf_16` (signal pins only), while the
+Sky130 CDL defines power pins (VGND VNB VPB VPWR).  KLayout/netgen reject the
+pin-count mismatch.  This script reads the cell CDL, then inserts the power
+pins in their declared positions.
+"""
+from __future__ import annotations
+import re
+import sys
+
+POWER = {"VGND", "VNB", "VPB", "VPWR"}
+
+def parse_defs(path: str) -> dict[str, list[str]]:
+    defs: dict[str, list[str]] = {}
+    cur = None
+    for raw in open(path, errors="replace"):
+        line = raw.strip()
+        m = re.match(r"\.(?:SUBCKT|subckt)\s+(\S+)\s+(.*)", line)
+        if m:
+            cur = m.group(1)
+            defs[cur] = m.group(2).split()
+    return defs
+
+def main() -> int:
+    lib, inp, out = sys.argv[1], sys.argv[2], sys.argv[3]
+    defs = parse_defs(lib)
+    n_patched = 0
+    with open(inp, errors="replace") as f, open(out, "w") as g:
+        for raw in f:
+            toks = raw.split()
+            if (len(toks) >= 2 and toks[0].startswith("X")
+                    and toks[-1] in defs):
+                cell = toks[-1]
+                sig = toks[1:-1]
+                full = defs[cell]
+                nonpower = [p for p in full if p not in POWER]
+                if len(sig) <= len(nonpower):
+                    # Yosys omits unconnected pins (usually outputs); pad with
+                    # explicit no-connect names so the pin count matches.
+                    sig = sig + ["_NC"] * (len(nonpower) - len(sig))
+                    si = 0
+                    newpins = []
+                    for p in full:
+                        if p in POWER:
+                            newpins.append(p)
+                        else:
+                            newpins.append(sig[si]); si += 1
+                    g.write(" ".join([toks[0], *newpins, cell]) + "\n")
+                    n_patched += 1
+                    continue
+            g.write(raw)
+    print(f"patched {n_patched} instances -> {out}")
+    return 0
+
+if __name__ == "__main__":
+    raise SystemExit(main())

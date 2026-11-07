@@ -12,3 +12,7 @@ pnr/*/pnr.log
 pnr/*/magic_*.log
 pnr/*/netgen_lvs.log
 project/.coresmith/
+pnr/*/*.cdl
+pnr/*/*.cir
+pnr/*/*.spice
+pnr/*/*.lvsdb

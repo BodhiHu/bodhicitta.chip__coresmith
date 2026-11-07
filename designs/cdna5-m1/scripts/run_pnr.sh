@@ -10,7 +10,7 @@ BLOCK=${1:-wmma}
 CORESMITH=$(cd "$HERE/../.." && pwd)
 export PDK_ROOT=${PDK_ROOT:-$CORESMITH/.pdk}
 OPENROAD_BIN=${OPENROAD_BIN:-openroad}
-UTILIZATION=${UTILIZATION:-0.35}
+UTILIZATION=${UTILIZATION:-45}
 
 case "$BLOCK" in
   wmma)   DESIGN=wmma;   NETLIST=syn/wmma/wmma_netlist.v ;;

@@ -331,18 +331,17 @@ timing result.
 | Detailed-route DRC | 0 (`route_drc.rpt` empty) |
 | GDS | `pnr/tdm/tdm_mapped.gds` (110 MB, KLayout DEF+LEF+cell GDS; valid GDSII, top cell `tdm`) |
 
-The 125k-cell `wmma` place-and-route is the next target and needs a larger
-memory budget than this 8 GB host demonstrated under the Bazel build load.
+The 125k-cell `wmma` place-and-route is being re-run on the upgraded
+15 GB / 8-core host (`pnr/wmma/pnr.log`).
 
-**GDS/DRC/LVS status.**  Magic's DEF reader expands the 1,024-bit block ports
-into a very large routed database; the first `gds write` produced a 67 MB
-partial file and did not terminate in 10 minutes.  KLayout converted the same
-DEF to a valid 110 MB GDS (`tdm_mapped.gds`) in seconds, but Magic's DRC
-flatten reads 1.25 M instance references and was killed after 6+ minutes;
-full-resolution DRC and netgen LVS on `tdm` are therefore **not completed** on
-this 8 GB host.  The OpenROAD detailed-route DRC report is empty (0
-violations), which is the route-level signoff evidence; a Magic DRC/LVS run
-needs a larger-memory host or a hierarchical (non-flattened) DRC deck.
+**GDS/DRC/LVS status.**  The DEF was converted to a valid 110 MB GDS by
+KLayout (`pnr/tdm/tdm_mapped.gds`).  KLayout's Sky130 DRC deck
+(`sky130A_mr.drc`) ran in 24 s and reported **0 DRC violations**
+(`pnr/tdm/klayout_drc.txt`); the OpenROAD detailed-route DRC report is also
+empty.  LVS is still open: KLayout LVS rejects the Yosys CDL's missing/
+unconnected cell pins (even after the power-pin patcher), and Magic's SPICE
+extraction of the 1.25 M-reference flat GDS is very slow.  Netgen LVS is a
+follow-up; it needs a cleaner CDL or a hierarchical extraction.
 
 `scripts/gds_drc_lvs.sh <block>` is the ready handoff:
 
