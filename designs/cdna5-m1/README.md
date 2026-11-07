@@ -46,7 +46,9 @@ standalone SFU (`rtl/sfu.v`, 1,728 Sky130 cells, exp2 3.53e-4 / rcp 2.51e-4,
 (`rtl/softmax_engine.v`, 5,622 cells / 39,035 µm², four passes, row-sum
 4036-4090) are provided for the softmax path.  The softmax engine is now
 **wired into the WGP** through the `S_SOFTMAX` scalar command and the LDS
-scalar port; `tb/tb_wgp_softmax.v` passes the full path.  The assembler understands
+scalar port; `tb/tb_wgp_softmax.v` passes the full WGP path, and `tb/tb_top_softmax.v`
+passes the full-chip TDM -> softmax -> AXI path (915 cycles, row sum 4064).
+The assembler understands
 `S_SOFTMAX` (`sw/asm.py`), and `sw/softmax.s` assembles to a 256-word image.
 The SFU remains a standalone block in `simd32`; see `spec/AI_SCOPE.md`.
 
