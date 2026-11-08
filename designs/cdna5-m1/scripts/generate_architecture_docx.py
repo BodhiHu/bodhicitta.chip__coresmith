@@ -629,10 +629,10 @@ def main():
 
     doc.add_heading("6. 記憶體子系統：LDS / TDM / global", level=1)
     doc.add_paragraph(
-        "圖 4 描述 LDS 與 global 的資料流。LDS 是 4 KB scratchpad：32 banks x 32 rows x "
+        "圖 3 描述 LDS 與 global 的資料流。LDS 是 4 KB scratchpad：32 banks x 32 rows x "
         "32-bit。word index w = byte_addr[11:2]；bank = w[4:0]；row = w[9:5]。"
     )
-    figure(doc, fig_mem(), "圖 4. LDS / TDM / AXI4 資料流（Word 可編輯群組）")
+    figure(doc, fig_mem(), "圖 3. LDS / TDM / AXI4 資料流（Word 可編輯群組）")
     doc.add_heading("6.1 LDS ports", level=2)
     add_table(doc, ["Port", "寬度", "用途", "仲裁"], [
         ["lane port 0", "32 x 32-bit", "SIMD0 的 V_LDS_LD/ST（per-lane address）", "conflict-free；與 linear/scalar 共用陣列"],
@@ -663,7 +663,7 @@ def main():
         "B[32][16]；A/B 是 MXFP4 E2M1 nibbles，C 是 int32。A 與 B 各 64 words（512 "
         "nibbles），C 是 256 words。"
     )
-    figure(doc, fig_wmma(), "圖 3. WMMA 16x16x32 資料通路與週期（Word 可編輯群組）")
+    figure(doc, fig_wmma(), "圖 4. WMMA 16x16x32 資料通路與週期（Word 可編輯群組）")
     doc.add_heading("7.1 數值格式", level=2)
     doc.add_paragraph(
         "MXFP4 E2M1 的 magnitude 為 {0, 0.5, 1, 1.5, 2, 3, 4, 6}，RTL 以 ×2 的整數 "
@@ -718,10 +718,10 @@ def main():
 
     doc.add_heading("9. AI 算子與資料流", level=1)
     doc.add_paragraph(
-        "圖 6 把三個 bring-up 算子放在同一張圖：GEMM 走 TDM/WMMA，Softmax 走 row engine，"
+        "圖 5 把三個 bring-up 算子放在同一張圖：GEMM 走 TDM/WMMA，Softmax 走 row engine，"
         "FlashAttention 由 QK^T、softmax、PV 三個階段組成。"
     )
-    figure(doc, fig_ops(), "圖 6. GEMM / Softmax / FlashAttention 算子資料流（Word 可編輯群組）")
+    figure(doc, fig_ops(), "圖 5. GEMM / Softmax / FlashAttention 算子資料流（Word 可編輯群組）")
     doc.add_heading("9.1 GEMM", level=2)
     doc.add_paragraph(
         "GEMM 以 16x16x32 tile 為單位：A/B 由 TDM 搬入 LDS，WMMA 計算，C 留在 LDS，"
@@ -821,7 +821,7 @@ def main():
         "M1 提供 source/API-level 的 HIP 與 HSA shim，讓既有 HIP 程式的 host 端 API 可以"
         "編譯、連結，並將 kernel 對應到 M1 的 operator model。這不是 gfx1250 binary runtime。"
     )
-    figure(doc, fig_sw(), "圖 5. ROCm / HIP / HSA 兼容層（Word 可編輯群組）")
+    figure(doc, fig_sw(), "圖 6. ROCm / HIP / HSA 兼容層（Word 可編輯群組）")
     add_table(doc, ["層級", "M1 支援", "說明"], [
         ["HIP host API", "支援 subset", "hipMalloc/Memcpy/Memset/streams/events/Launch"],
         ["HIP kernel source", "支援受限 C++", "g++ 編譯；kernel 以 host 序列執行"],
