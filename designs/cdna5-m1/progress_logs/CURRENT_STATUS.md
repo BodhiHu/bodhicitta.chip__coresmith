@@ -176,16 +176,13 @@ source designs/cdna5-m1/scripts/env.sh
 make preflight
 
 cd designs/cdna5-m1
-./scripts/check_sfu.sh
-./scripts/check_softmax.sh
-./scripts/check_wgp_softmax.sh
-./scripts/check_top_softmax.sh
-./scripts/check_wmma_top.sh
-./scripts/run_operators.sh
+./scripts/check_all.sh
 ```
 
-Expected: all PASS; full-chip softmax 940 cycles / sum 4064; GEMM tile 256
-cycles; ROCm 5/5.
+`check_all.sh` runs the SFU, softmax engine, WGP softmax, full-chip
+softmax, full-chip GEMM tile and the operator/ROCm examples.  Expected: all
+PASS; full-chip softmax 940 cycles / sum 4064; GEMM tile 256 cycles; ROCm
+5/5.  The individual scripts are listed in the table in section 2.1.
 
 ### 4.2 Docker (Ubuntu 24.04 / arm64)
 
