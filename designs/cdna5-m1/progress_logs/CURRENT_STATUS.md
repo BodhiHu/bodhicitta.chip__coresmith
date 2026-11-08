@@ -126,6 +126,7 @@ designs/cdna5-m1/
     AI_SCOPE.md              AI-only scope, graphics removal table
     ROCM_COMPAT.md           HIP/HSA compatibility matrix and limits
   doc/
+    CDNA5-M1_Architecture.docx  editable architecture Word document
     BACKEND.md PERFORMANCE.md VERIFICATION.md OPERATORS.md
     CORESMITH_INTEGRATION.md
   rtl/
@@ -222,7 +223,19 @@ above were run and passed.  Treat the first Docker build as a toolchain
 bring-up step and pin `OPENROAD_REF`/`BAZELISK_VERSION` if long-term
 reproducibility matters.
 
-### 4.3 GUI
+### 4.3 Architecture Word document
+
+The complete architecture document is
+[`doc/CDNA5-M1_Architecture.docx`](../doc/CDNA5-M1_Architecture.docx).  Its six
+diagrams are native Word VML groups, so they can be clicked and edited in
+Word (text, position, color, grouping).  Regenerate it with:
+
+```bash
+cd designs/cdna5-m1
+../../venv/bin/python scripts/generate_architecture_docx.py
+```
+
+### 4.4 GUI
 
 ```bash
 cd designs/cdna5-m1

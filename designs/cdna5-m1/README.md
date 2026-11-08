@@ -111,6 +111,11 @@ while cutting vector area.
 
 ## Architecture
 
+**完整 Word 架構文檔：[`doc/CDNA5-M1_Architecture.docx`](doc/CDNA5-M1_Architecture.docx)**。
+內含 6 張 Word 原生可編輯 VML 架構圖（top-level、WGP/CU/SIMD、WMMA、LDS/TDM、ROCm stack、算子資料流），
+以及完整 block/ISA/CSR/驗證/限制說明。可由
+`scripts/generate_architecture_docx.py` 重新產生。
+
 ```
 AXI4-Lite host CSRs
        |
@@ -211,7 +216,7 @@ and the control/AXI/TDM logic.
 | `constraints/` | 100 MHz SDC |
 | `syn/` | Yosys scripts, netlists, area/timing logs |
 | `pnr/` | OpenROAD scripts, DEF/GDS, DRC/LVS reports |
-| `doc/` | performance, verification, backend write-ups |
+| `doc/` | architecture Word doc, performance, verification, backend write-ups |
 | `scripts/` | one-command regression and flow drivers |
 
 ## Known deviations from a production CDNA5 part

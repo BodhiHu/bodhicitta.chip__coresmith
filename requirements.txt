@@ -63,3 +63,6 @@ langsmith>=0.8.18  # advisory: < 0.8.0
 # pysim carries their real clock/handshake/latency semantics and the gate
 # compares the composed output bit-exactly with the software reference.
 amaranth>=0.5,<0.6
+
+# Documentation generator (scripts/generate_architecture_docx.py)
+python-docx>=1.1.0
