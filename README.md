@@ -42,7 +42,7 @@ Post-synthesis, LLM agents drive place-and-route, DRC, GDS export, and LVS — e
 
 ## Setup
 
-See [SETUP.md](SETUP.md) (Docker/RunPod, Nix, or OSS-CAD-Suite), then run `make preflight`.
+See [SETUP.md](SETUP.md) (Docker/RunPod, Nix, or OSS-CAD-Suite), then run `make preflight`.  On Ubuntu 24.04 **arm64** use [SETUP-ARM64.md](SETUP-ARM64.md), or the containerized version in [Dockerfile_ubuntu2404_arm64](Dockerfile_ubuntu2404_arm64).
 
 ## Usage
 

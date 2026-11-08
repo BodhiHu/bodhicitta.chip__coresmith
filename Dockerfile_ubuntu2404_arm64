@@ -1,0 +1,223 @@
+# syntax=docker/dockerfile:1.7
+#
+# Dockerfile_ubuntu2404_arm64 -- reproducible CoreSmith + CDNA5-M1 toolchain.
+#
+# This is the containerized form of SETUP-ARM64.md.  It targets Ubuntu 24.04
+# on aarch64 and installs the pieces the arm64 OSS-CAD-Suite tarball does NOT
+# ship: OpenROAD (Bazel source build), OpenSTA, Magic, netgen, KLayout and the
+# Sky130 PDK.
+#
+# Build from the coresmith/ repository root (the build context must contain
+# requirements.txt, orchestrator/, scripts/pdk-version.env, bin/ and designs/):
+#
+#   docker build --platform linux/arm64 \
+#     -f Dockerfile_ubuntu2404_arm64 \
+#     -t coresmith-arm64 .
+#
+# Run:
+#
+#   docker run --rm -it --platform linux/arm64 \
+#     -v "$PWD":/opt/coresmith \
+#     coresmith-arm64
+#
+# Notes:
+#   * The build needs network access and several GB of RAM/disk.  OpenROAD's
+#     Bazel build is the slowest layer; lower BAZEL_JOBS on a small host.
+#   * The image pins the OSS-CAD-Suite release and Sky130 PDK commit used by
+#     this project.  Bump the ARGs deliberately.
+#   * This image is a development/toolchain image, not a minimal runtime.
+#   * Do not put API keys in the image; mount .env.local at run time if needed.
+
+FROM --platform=linux/arm64 ubuntu:24.04
+
+SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG OSS_CAD_RELEASE=2026-11-06
+ARG BAZELISK_VERSION=v1.25.0
+ARG OPENROAD_REF=master
+ARG SKY130_PDK_COMMIT=c6d73a35f524070e85faff4a6a9eef49553ebc2b
+ARG BAZEL_JOBS=4
+ARG MAGIC_JOBS=4
+
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    TZ=UTC \
+    HOME=/root
+
+# ---------------------------------------------------------------------------
+# 1. Base packages
+# ---------------------------------------------------------------------------
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential \
+      ca-certificates \
+      cmake \
+      ninja-build \
+      pkg-config \
+      git \
+      curl \
+      wget \
+      sudo \
+      unzip \
+      xz-utils \
+      zstd \
+      python3 \
+      python3-dev \
+      python3-venv \
+      python3-pip \
+      netgen-lvs \
+      klayout \
+      zlib1g-dev \
+      libboost-all-dev \
+      libeigen3-dev \
+      libspdlog-dev \
+      libfmt-dev \
+      libyaml-cpp-dev \
+      libreadline-dev \
+      libncurses-dev \
+      libgtest-dev \
+      libtool \
+      automake \
+      autoconf \
+      swig \
+      bison \
+      flex \
+      tcl-dev \
+      tk-dev \
+      libx11-dev \
+      libxpm-dev \
+      libcairo2-dev \
+      libomp-dev \
+      libunwind-dev \
+      libzmq3-dev \
+      libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# ---------------------------------------------------------------------------
+# 2. Repository
+# ---------------------------------------------------------------------------
+WORKDIR /opt/coresmith
+COPY . /opt/coresmith
+
+# ---------------------------------------------------------------------------
+# 3. OSS-CAD-Suite (Yosys / Verilator / Icarus)
+# ---------------------------------------------------------------------------
+RUN mkdir -p /opt/eda && \
+    curl -fL --retry 5 -o /tmp/oss-cad-suite.tgz \
+      "https://github.com/YosysHQ/oss-cad-suite-build/releases/download/${OSS_CAD_RELEASE}/oss-cad-suite-linux-arm64-$(echo ${OSS_CAD_RELEASE} | tr -d '-').tgz" && \
+    tar --no-same-owner -xzf /tmp/oss-cad-suite.tgz -C /opt/eda && \
+    rm -f /tmp/oss-cad-suite.tgz && \
+    test -x /opt/eda/oss-cad-suite/bin/yosys && \
+    test -x /opt/eda/oss-cad-suite/bin/iverilog
+
+ENV PATH="/opt/coresmith/bin:/opt/eda/oss-cad-suite/bin:${PATH}"
+
+# ---------------------------------------------------------------------------
+# 4. Magic (Sky130 needs >= 8.3.411; apt's 24.04 package is too old)
+# ---------------------------------------------------------------------------
+RUN git clone --depth 1 https://github.com/RTimothyEdwards/magic.git /opt/magic-src && \
+    cd /opt/magic-src && \
+    ./configure --prefix=/opt/magic-install && \
+    make -j"${MAGIC_JOBS}" && \
+    make install && \
+    /opt/magic-install/bin/magic --version
+
+RUN ln -sfn /usr/lib/netgen/bin/netgen /usr/local/bin/netgen
+
+# ---------------------------------------------------------------------------
+# 5. CUDD + OpenSTA + OpenROAD (Bazel)
+# ---------------------------------------------------------------------------
+RUN git clone --depth 1 https://github.com/ivmai/cudd.git /opt/cudd-src && \
+    cd /opt/cudd-src && \
+    autoreconf -fi && \
+    ./configure --prefix=/opt/cudd && \
+    make -j"${MAGIC_JOBS}" && \
+    make install
+
+RUN git clone --depth 1 --branch "${OPENROAD_REF}" \
+      https://github.com/The-OpenROAD-Project/OpenROAD.git /opt/openroad-src && \
+    cd /opt/openroad-src && \
+    git submodule update --init --recursive && \
+    ./etc/DependencyInstaller.sh -bazel -no-gui
+
+# aarch64 clang treats char as unsigned and -Werror rejects `char fc == EOF`.
+# This is the same source patch documented in SETUP-ARM64.md.
+RUN cd /opt/openroad-src && \
+    sed -i 's/^  char fc;/  int fc;/' \
+      src/odb/src/lef/lef/lef_keywords.cpp \
+      src/odb/src/def/def/def_keywords.cpp
+
+# Bazelisk is the supported launcher for OpenROAD's Bazel build.
+RUN curl -fL --retry 5 -o /usr/local/bin/bazelisk \
+      "https://github.com/bazelbuild/bazelisk/releases/download/${BAZELISK_VERSION}/bazelisk-linux-arm64" && \
+    chmod +x /usr/local/bin/bazelisk && \
+    ln -sfn /usr/local/bin/bazelisk /usr/local/bin/bazel && \
+    bazelisk version
+
+RUN cd /opt/openroad-src && \
+    bazelisk run --jobs="${BAZEL_JOBS}" --//:platform=cli //:install && \
+    test -x /opt/install/OpenROAD/bin/openroad
+
+# Standalone OpenSTA (also available through OpenROAD's build).
+RUN cmake -S /opt/openroad-src/src/sta -B /opt/openroad-src/src/sta/build \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DBUILD_TESTS=OFF \
+      -DCUDD_DIR=/opt/cudd && \
+    cmake --build /opt/openroad-src/src/sta/build -j"${MAGIC_JOBS}" && \
+    test -x /opt/openroad-src/src/sta/build/sta
+
+# ---------------------------------------------------------------------------
+# 6. Sky130 PDK (pinned volare release assets; volare enable is flaky here)
+# ---------------------------------------------------------------------------
+RUN source scripts/pdk-version.env && \
+    C="${SKY130_PDK_COMMIT}" && \
+    V=".pdk/volare/sky130/versions/${C}" && \
+    mkdir -p "${V}" /tmp/pdktars && \
+    cd /tmp/pdktars && \
+    for f in common sky130_fd_io sky130_fd_pr sky130_fd_sc_hd \
+             sky130_fd_sc_hvl sky130_ml_xx_hd sky130_sram_macros; do \
+      curl -fL --retry 5 -o "${f}.tar.zst" \
+        "https://github.com/efabless/volare/releases/download/sky130-${C}/${f}.tar.zst"; \
+      tar --zstd -xf "${f}.tar.zst" -C "${V}"; \
+    done && \
+    cd /opt/coresmith && \
+    ln -sfn "volare/sky130/versions/${C}/sky130A" .pdk/sky130A && \
+    ln -sfn "volare/sky130/versions/${C}/sky130B" .pdk/sky130B && \
+    echo "${C}" > .pdk/volare/sky130/current && \
+    test -d .pdk/sky130A/libs.tech && \
+    test -f .pdk/sky130A/libs.ref/sky130_fd_sc_hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib
+
+# ---------------------------------------------------------------------------
+# 7. Python environment
+# ---------------------------------------------------------------------------
+RUN python3 -m venv /opt/coresmith/venv && \
+    /opt/coresmith/venv/bin/pip install --upgrade pip setuptools wheel && \
+    /opt/coresmith/venv/bin/pip install -r requirements.txt && \
+    /opt/coresmith/venv/bin/pip install -e orchestrator/ && \
+    /opt/coresmith/venv/bin/pip install volare
+
+# ---------------------------------------------------------------------------
+# 8. Environment expected by CoreSmith / the M1 design
+# ---------------------------------------------------------------------------
+ENV PDK_ROOT=/opt/coresmith/.pdk \
+    CORESMITH_ALLOW_NO_OPENRAM=1 \
+    CORESMITH_BACKEND_OPENROAD=/opt/install/OpenROAD/bin/openroad \
+    CORESMITH_BACKEND_MAGIC=/opt/magic-install/bin/magic \
+    CORESMITH_BACKEND_NETGEN=/usr/local/bin/netgen \
+    CORESMITH_BACKEND_YOSYS=/opt/eda/oss-cad-suite/bin/yosys \
+    CORESMITH_BACKEND_KLAYOUT=/usr/bin/klayout \
+    CORESMITH_REAL_STA=/opt/openroad-src/src/sta/build/sta
+
+WORKDIR /opt/coresmith
+
+# Smoke-check the toolchain and the Sky130 PDK.  This is intentionally a
+# toolchain check, not a full design run.
+RUN source designs/cdna5-m1/scripts/env.sh && \
+    test -x "${CORESMITH_BACKEND_OPENROAD}" && \
+    test -x "${CORESMITH_BACKEND_MAGIC}" && \
+    test -x "${CORESMITH_BACKEND_YOSYS}" && \
+    test -x "${CORESMITH_BACKEND_KLAYOUT}" && \
+    test -x "${CORESMITH_REAL_STA}" && \
+    make preflight
+
+CMD ["/bin/bash"]

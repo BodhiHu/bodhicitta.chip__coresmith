@@ -1,44 +1,43 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# This source code is licensed under the MIT license found in the
-# LICENSE file in the root directory of this source tree.
-
-# Don't ship the developer venv into the image.
-venv/
-.venv/
-orchestrator/.venv/
-**/__pycache__/
-*.pyc
-*.pyo
-*.egg-info/
-build/
-dist/
-
-# PDK is downloaded inside the image at build time.
-.pdk/
-
-# Pipeline-generated artifacts -- regenerated per run.
-.coresmith/
-rtl/
-tb/
-syn/
-sim_build/
-pnr/
-arch/
-verification/
-chip_finish/
-archive/
-
-# Local config / secrets
+# Build context exclusions for Dockerfile_ubuntu2404_arm64.
+# Keep source, specs, tests, scripts and the pinned PDK version file.
+.git
+.gitignore
+.pdk
+venv
+**/__pycache__
+**/.pytest_cache
+**/*.pyc
+designs/cdna5-m1/sim/build
+designs/cdna5-m1/rocm/build
+designs/cdna5-m1/syn/*/*_netlist.v
+designs/cdna5-m1/syn/*/*.json
+designs/cdna5-m1/syn/*/yosys.log
+designs/cdna5-m1/syn/*/stdout*.log
+designs/cdna5-m1/syn/*/synth.ys
+designs/cdna5-m1/pnr/*/*.gds
+designs/cdna5-m1/pnr/*/*.def
+designs/cdna5-m1/pnr/*/*_pnr.v
+designs/cdna5-m1/pnr/*/*_pwr.v
+designs/cdna5-m1/pnr/*/route_guide.guide
+designs/cdna5-m1/pnr/*/*.log
+designs/cdna5-m1/pnr/*/*.cdl
+designs/cdna5-m1/pnr/*/*.cir
+designs/cdna5-m1/pnr/*/*.spice
+designs/cdna5-m1/pnr/*/*.lvsdb
+designs/cdna5-m1/project/.coresmith
+designs/cdna5-m1/*.ext
+.env.local
 .env
-.mcp.json
 
-# IDE / OS noise
-.git/
-.github/
+# Developer/IDE noise (keep the design RTL/tb/syn/pnr files above).
 .vscode/
 .idea/
 .cursor/
 .claude/
+.github/
+**/node_modules/
+**/*.egg-info/
+orchestrator/.venv/
 .DS_Store
 Thumbs.db
-node_modules/
+.mcp.json

@@ -4,7 +4,10 @@
 (Ubuntu 24.04, **aarch64**, no Nix, no Docker) the x86 Docker image and the
 Nix flake are not usable, and the arm64 OSS-CAD-Suite tarball does not ship
 OpenROAD/Magic/netgen/KLayout.  This page records the exact local setup that
-was used, so it can be repeated.
+was used, so it can be repeated.  A containerized version of these steps is
+provided in [`Dockerfile_ubuntu2404_arm64`](Dockerfile_ubuntu2404_arm64); build
+it from the repository root with
+`docker build --platform linux/arm64 -f Dockerfile_ubuntu2404_arm64 -t coresmith-arm64 .`.
 
 ## What is installed
 
