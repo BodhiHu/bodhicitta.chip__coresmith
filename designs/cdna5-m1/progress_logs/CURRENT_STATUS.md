@@ -215,6 +215,13 @@ The Docker build compiles OpenROAD/OpenSTA/Magic and downloads Sky130, so it
 needs a large disk, several GB of RAM and network access.  Build time is
 dominated by OpenROAD Bazel.
 
+**Verification note:** this environment has no Docker/Podman executable, so
+the Dockerfile was not built here.  It is a direct transcription of the
+verified `SETUP-ARM64.md` steps; the host-side toolchain and all design checks
+above were run and passed.  Treat the first Docker build as a toolchain
+bring-up step and pin `OPENROAD_REF`/`BAZELISK_VERSION` if long-term
+reproducibility matters.
+
 ### 4.3 GUI
 
 ```bash
